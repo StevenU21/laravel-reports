@@ -206,3 +206,78 @@ public function orientation(): string
 - Always apply tenant scoping in `query()` (global scopes or explicit `where('tenant_id', ...)`).
 - Enforce authorization in your controller before generating the report (Policies/Gates).
 - If the report receives a model (e.g. single-record report), ensure the model is tenant-scoped and authorized.
+
+## NativePHP Preview (Optional Integration)
+
+This package does not depend on NativePHP, but it provides a small helper to make “open preview window” flows easy while still using the package's PDF `Response` for streaming.
+
+### How it works
+
+- Your "open preview" controller action calls the helper.
+- The helper validates the limit (if `shouldValidateLimit()` is enabled).
+- If validation passes, it calls your app-specific window opener and returns `204 No Content`.
+- The NativePHP window loads a route with `?preview=1`, and that route returns the streamed PDF using the package.
+
+### 1) Implement a window opener adapter in your app
+
+```php
+use Deifhelt\LaravelReports\Interfaces\PreviewWindowOpener;
+use Native\Laravel\Facades\Window;
+
+class NativePhpWindowOpener implements PreviewWindowOpener
+{
+    public function openPdfWindow(string $route, array $params, string $title): void
+    {
+        Window::open('pdf-preview-' . uniqid())
+            ->route($route, $params)
+            ->width(900)
+            ->height(700)
+            ->minWidth(600)
+            ->minHeight(400)
+            ->title($title)
+            ->resizable(true)
+            ->hideMenu()
+            ->hideDevTools();
+    }
+}
+```
+
+Bind it in your container:
+
+```php
+use Deifhelt\LaravelReports\Interfaces\PreviewWindowOpener;
+
+$this->app->singleton(PreviewWindowOpener::class, NativePhpWindowOpener::class);
+```
+
+### 2) Use `PreviewWindowReportManager` in your controller
+
+```php
+use App\Reports\GeneralSalesReport;
+use Deifhelt\LaravelReports\Preview\PreviewWindowReportManager;
+use Illuminate\Http\Request;
+
+class SaleExportController
+{
+    public function __construct(private readonly PreviewWindowReportManager $previews) {}
+
+    // A) Opens the NativePHP preview window (does not return the PDF)
+    public function openPreview(Request $request)
+    {
+        return $this->previews->process(
+            report: new GeneralSalesReport(),
+            request: $request,
+            title: 'Reporte General de Ventas',
+            route: 'exports.sales.stream',
+        );
+    }
+
+    // B) Route that the NativePHP window loads (returns the streamed PDF)
+    public function stream(Request $request)
+    {
+        // When the window loads this route with ?preview=1, the package streams the PDF.
+        return app(\Deifhelt\LaravelReports\LaravelReports::class)
+            ->process(new GeneralSalesReport(), $request, 'Reporte General de Ventas');
+    }
+}
+```
