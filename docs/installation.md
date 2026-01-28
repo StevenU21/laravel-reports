@@ -22,3 +22,8 @@ php artisan vendor:publish --provider="Deifhelt\LaravelReports\LaravelReportsSer
 ```
 
 This will create a `config/reports.php` file in your application where you can adjust available parameters.
+
+## Next
+
+- [Usage (index)](usage.md)
+- [Configuration](configuration.md)

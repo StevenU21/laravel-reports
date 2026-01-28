@@ -9,3 +9,8 @@ To use **Laravel Reports**, ensure your environment meets the following requirem
     - `spatie/laravel-package-tools`: ^1.16
 
 This library functions as a robust container over `laravel-dompdf`, so it inherits its system dependencies (such as the PHP extensions required for PDF handling).
+
+## Next
+
+- [Installation](installation.md)
+- [Usage (index)](usage.md)

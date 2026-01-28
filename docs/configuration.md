@@ -58,3 +58,9 @@ use Deifhelt\LaravelReports\Interfaces\PdfRenderer;
 
 $this->app->singleton(PdfRenderer::class, MyPdfRenderer::class);
 ```
+
+## Next
+
+- [Usage (index)](usage.md)
+- [Usage: Features & configuration](usage/05-features-and-configuration.md)
+ 

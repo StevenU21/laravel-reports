@@ -4,116 +4,54 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/deifhelt/laravel-reports.svg?style=flat-square)](https://packagist.org/packages/deifhelt/laravel-reports)
 [![License](https://img.shields.io/packagist/l/deifhelt/laravel-reports.svg?style=flat-square)](https://packagist.org/packages/deifhelt/laravel-reports)
 
----
+## Overview
 
-## Project Description
+Laravel Reports is a small, opinionated wrapper around `barryvdh/laravel-dompdf` that helps you generate PDFs using a consistent report class pattern.
 
-**Laravel Reports** serves as a professional, structured container for `barryvdh/laravel-dompdf`. Its primary goal is to organize report generation logic by encapsulating it within dedicated definition classes, rather than scattering logic across controllers or routes.
+Instead of scattering PDF logic across controllers/routes, you define a report once (query + view + filename) and let the package handle rendering and response mode.
 
-This package allows you to:
+## What it provides
 
-- Centralize data query logic.
-- Define views and filenames in a predictable manner.
-- Validate record limits to prevent memory issues.
-- Automatically handle download or browser streaming.
-
----
-
----
+- **Report definitions** via `ReportDefinition` (query + view + filename)
+- **Single entrypoint** via `LaravelReports::process()`
+- **Automatic response mode**:
+  - `?preview=1` or `?stream=1` streams in the browser
+  - no flag downloads the PDF
+- **Optional dataset limit validation** to protect against huge exports
+- **Safe view variables** (`filters` are query-string only)
+- **Pluggable renderer** via `PdfRenderer` (DomPDF by default)
+- **Optional NativePHP preview helper** (`PreviewWindowReportManager`) for open window then stream PDF flows
 
 ## Installation
-
-You can install the package via composer:
 
 ```bash
 composer require deifhelt/laravel-reports
 ```
 
-You can publish the config file with:
+Publish the configuration:
 
 ```bash
 php artisan vendor:publish --tag="laravel-reports-config"
 ```
 
-or
+DomPDF settings (fonts, remote assets, security, etc.) are configured in your app via `config/dompdf.php`.
 
-```bash
-php artisan vendor:publish --provider="Deifhelt\LaravelReports\LaravelReportsServiceProvider"
-```
+## Public API (most used)
 
-## Creating Reports
+- `LaravelReports::process($report, $request, $title = 'Report')`
+- `LaravelReports::stream($report, $request)`
+- `LaravelReports::download($report, $request)`
 
-The package provides a convenient command to generate a report class, its corresponding Blade view, and a test file:
+## Documentation
 
-```bash
-php artisan make:report MonthlySales
-```
+- [Requirements](docs/requirements.md)
+- [Installation](docs/installation.md)
+- [Configuration](docs/configuration.md)
+- [Usage (index)](docs/usage.md)
 
-This will create:
+## Notes
 
-- `app/Reports/MonthlySales.php`: The report definition class.
-- `resources/views/reports/monthly-sales.blade.php`: The Blade view for the PDF.
-- `tests/Feature/Reports/MonthlySalesTest.php`: A basic Pest test for the report.
-
-You can also specify a model:
-
-```bash
-php artisan make:report MonthlySales --model=Sale
-```
-
-## Official Documentation
-
----
-
-## Quick Example
-
-Define your report by implementing the `ReportDefinition` interface:
-
-```php
-use Deifhelt\LaravelReports\Interfaces\ReportDefinition;
-use Deifhelt\LaravelReports\Traits\DefaultReportConfiguration;
-
-class MonthlySales implements ReportDefinition
-{
-    use DefaultReportConfiguration;
-
-    public function query(Request $request) {
-        return Sale::whereMonth('created_at', now()->month);
-    }
-
-    public function view(): string {
-        return 'reports.sales';
-    }
-
-    public function filename(): string {
-        return 'monthly-sales.pdf';
-    }
-}
-```
-
-Generate the PDF in your controller:
-
-```php
-public function export(Request $request)
-{
-    // Recommended: dependency injection
-    return app(\Deifhelt\LaravelReports\LaravelReports::class)
-    ->process(new MonthlySales(), $request, 'Monthly Sales');
-}
-```
-
-Or using the Facade:
-
-```php
-use Deifhelt\LaravelReports\Facades\LaravelReports;
-
-public function export(Request $request)
-{
-    return LaravelReports::process(new MonthlySales(), $request, 'Monthly Sales');
-}
-```
-
----
+- This package ships with an example migration stub via package tools; PDF rendering does not require a database table.
 
 ## Credits
 
