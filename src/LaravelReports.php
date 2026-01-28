@@ -29,10 +29,10 @@ class LaravelReports
         // Decide between stream or download based on request input
         // Default to download unless 'preview' or 'stream' is present
         if ($request->has('preview') || $request->has('stream')) {
-            return $this->stream($report, $request);
+            return $this->generatePdfResponse($report, $request, 'stream', $query, $title);
         }
 
-        return $this->download($report, $request);
+        return $this->generatePdfResponse($report, $request, 'download', $query, $title);
     }
 
     /**
@@ -100,9 +100,15 @@ class LaravelReports
     /**
      * Internal method to generate PDF response.
      */
-    protected function generatePdfResponse(ReportDefinition $definition, Request $request, string $type): Response
+    protected function generatePdfResponse(
+        ReportDefinition $definition,
+        Request $request,
+        string $type,
+        mixed $query = null,
+        string $title = 'Report'
+    ): Response
     {
-        $query = $definition->query($request);
+        $query = $query ?? $definition->query($request);
 
         $data = $query;
         if (
@@ -116,6 +122,7 @@ class LaravelReports
         $viewData = [
             'data' => $data,
             'filters' => $request->all(),
+            'title' => $title,
         ];
 
         // Add summary if exists

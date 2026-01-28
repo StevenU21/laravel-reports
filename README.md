@@ -98,7 +98,7 @@ public function export(Request $request)
 {
     // Recommended: dependency injection
     return app(\Deifhelt\LaravelReports\LaravelReports::class)
-        ->process(new MonthlySales(), $request);
+    ->process(new MonthlySales(), $request, 'Monthly Sales');
 }
 ```
 
@@ -109,7 +109,7 @@ use Deifhelt\LaravelReports\Facades\LaravelReports;
 
 public function export(Request $request)
 {
-    return LaravelReports::process(new MonthlySales(), $request);
+    return LaravelReports::process(new MonthlySales(), $request, 'Monthly Sales');
 }
 ```
 

@@ -128,7 +128,8 @@ class ReportController extends Controller
         // Automatically handles Stream or Download based on the request
         // If the request has ?preview or ?stream, it will be shown in the browser.
         // Otherwise, it will be downloaded.
-        return $this->laravelReports->process($report, $request);
+        // Optional third parameter becomes available in the Blade view as $title
+        return $this->laravelReports->process($report, $request, 'Users Report');
     }
 }
 ```
@@ -148,7 +149,7 @@ class ReportController extends Controller
 {
     public function download(Request $request)
     {
-        return LaravelReports::process(new UsersReport(), $request);
+        return LaravelReports::process(new UsersReport(), $request, 'Users Report');
     }
 }
 ```
