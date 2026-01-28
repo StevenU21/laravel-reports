@@ -121,7 +121,8 @@ class LaravelReports
 
         $viewData = [
             'data' => $data,
-            'filters' => $request->all(),
+            // Only pass query-string filters to avoid leaking body/file inputs into the PDF
+            'filters' => $request->query(),
             'title' => $title,
         ];
 

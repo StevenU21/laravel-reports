@@ -182,3 +182,27 @@ public function orientation(): string
     return 'landscape';
 }
 ```
+
+## Security & Robustness
+
+### Treat request input as untrusted
+
+- The frontend should send intentions (IDs, filters, ranges). Your backend/report must calculate consequences (totals, taxes, amounts). Avoid trusting user-provided totals.
+- Prefer strict validation of filters (FormRequest in your app) and map inputs explicitly (avoid passing arbitrary request keys into query logic).
+
+### Sanitize and constrain filters
+
+- Allowlist filter keys (e.g. `role`, `date_from`, `date_to`) and validate types/ranges.
+- Avoid using raw `orderBy($request->sort)` or `whereRaw(...)` with user input.
+- The package exposes `filters` to the Blade view using only query-string parameters. Still, avoid rendering unescaped user input.
+
+### Blade/HTML safety for PDFs
+
+- Use Blade escaping (`{{ }}`) for any user-provided values. Avoid `{!! !!}` unless you fully control the content.
+- Be careful with external/remote assets (images/fonts). Review DomPDF settings such as remote access and chroot restrictions in your app's `config/dompdf.php`.
+
+### Multi-tenant and authorization
+
+- Always apply tenant scoping in `query()` (global scopes or explicit `where('tenant_id', ...)`).
+- Enforce authorization in your controller before generating the report (Policies/Gates).
+- If the report receives a model (e.g. single-record report), ensure the model is tenant-scoped and authorized.
