@@ -2,14 +2,18 @@
 
 namespace Deifhelt\LaravelReports;
 
-use Barryvdh\DomPDF\Facade\Pdf;
 use Deifhelt\LaravelReports\Exceptions\ReportException;
+use Deifhelt\LaravelReports\Interfaces\PdfRenderer;
 use Deifhelt\LaravelReports\Interfaces\ReportDefinition;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class LaravelReports
 {
+    public function __construct(private readonly PdfRenderer $pdfRenderer)
+    {
+    }
+
     /**
      * Process a report request (Stream or Download).
      *
@@ -157,11 +161,8 @@ class LaravelReports
             $orientation = $definition->orientation();
         }
 
-        $pdf = Pdf::loadView($definition->view(), $viewData)
-            ->setPaper($paper, $orientation);
-
         return $type === 'stream'
-            ? $pdf->stream($definition->filename())
-            : $pdf->download($definition->filename());
+            ? $this->pdfRenderer->stream($definition->view(), $viewData, $paper, $orientation, $definition->filename())
+            : $this->pdfRenderer->download($definition->view(), $viewData, $paper, $orientation, $definition->filename());
     }
 }

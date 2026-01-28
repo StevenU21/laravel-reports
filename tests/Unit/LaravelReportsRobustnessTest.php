@@ -1,6 +1,6 @@
 <?php
 
-use Barryvdh\DomPDF\Facade\Pdf;
+use Deifhelt\LaravelReports\Interfaces\PdfRenderer;
 use Deifhelt\LaravelReports\Interfaces\ReportDefinition;
 use Deifhelt\LaravelReports\LaravelReports;
 use Deifhelt\LaravelReports\Traits\DefaultReportConfiguration;
@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Symfony\Component\HttpFoundation\Response;
 
 class LrTenant extends Model
 {
@@ -29,7 +30,9 @@ class LrPurchase extends Model
     }
 }
 
-beforeEach(function () {
+$pdfRenderer = null;
+
+beforeEach(function () use (&$pdfRenderer) {
     Schema::dropAllTables();
 
     Schema::create('lr_tenants', function (Blueprint $table) {
@@ -50,20 +53,13 @@ beforeEach(function () {
     LrPurchase::query()->create(['tenant_id' => $tenantA->id, 'status' => 'pending']);
     LrPurchase::query()->create(['tenant_id' => $tenantB->id, 'status' => 'paid']);
 
-    $mockDownloadResponse = Mockery::mock(\Illuminate\Http\Response::class);
-    $mockDownloadResponse->shouldReceive('getContent')->andReturn('downloaded');
-
-    $mockStreamResponse = Mockery::mock(\Illuminate\Http\Response::class);
-    $mockStreamResponse->shouldReceive('getContent')->andReturn('streamed');
-
-    Pdf::shouldReceive('loadView')->andReturnSelf()->byDefault();
-    Pdf::shouldReceive('setPaper')->andReturnSelf()->byDefault();
-    Pdf::shouldReceive('stream')->andReturn($mockStreamResponse)->byDefault();
-    Pdf::shouldReceive('download')->andReturn($mockDownloadResponse)->byDefault();
+    $pdfRenderer = Mockery::mock(PdfRenderer::class);
+    $pdfRenderer->shouldReceive('stream')->andReturn(new Response('streamed'))->byDefault();
+    $pdfRenderer->shouldReceive('download')->andReturn(new Response('downloaded'))->byDefault();
 });
 
-it('evaluates query only once during process', function () {
-    $manager = new LaravelReports;
+it('evaluates query only once during process', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
 
     $calls = 0;
     $report = new class($calls) implements ReportDefinition {
@@ -94,15 +90,18 @@ it('evaluates query only once during process', function () {
         }
     };
 
-    Pdf::shouldReceive('loadView')->once()->andReturnSelf();
+    $pdfRenderer->shouldReceive('download')
+        ->with('test-view', Mockery::any(), Mockery::any(), Mockery::any(), 'test.pdf')
+        ->once()
+        ->andReturn(new Response('downloaded'));
 
     $manager->process($report, Request::create('/report', 'GET'));
 
     expect($calls)->toBe(1);
 });
 
-it('supports eloquent builder with when filters', function () {
-    $manager = new LaravelReports;
+it('supports eloquent builder with when filters', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
 
     $report = new class implements ReportDefinition {
         use DefaultReportConfiguration;
@@ -129,21 +128,27 @@ it('supports eloquent builder with when filters', function () {
         }
     };
 
-    Pdf::shouldReceive('loadView')
-        ->with('test-view', Mockery::on(function (array $data) {
-            return $data['data'] instanceof Collection
-                && $data['data']->count() === 2
-                && ($data['filters']['status'] ?? null) === 'paid';
-        }))
+    $pdfRenderer->shouldReceive('download')
+        ->with(
+            'test-view',
+            Mockery::on(function (array $data) {
+                return $data['data'] instanceof Collection
+                    && $data['data']->count() === 2
+                    && ($data['filters']['status'] ?? null) === 'paid';
+            }),
+            Mockery::any(),
+            Mockery::any(),
+            'test.pdf'
+        )
         ->once()
-        ->andReturnSelf();
+        ->andReturn(new Response('downloaded'));
 
     $response = $manager->process($report, Request::create('/report', 'GET', ['status' => 'paid']));
     expect($response->getContent())->toBe('downloaded');
 });
 
-it('supports relation queries', function () {
-    $manager = new LaravelReports;
+it('supports relation queries', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
 
     $tenantA = LrTenant::query()->where('name', 'A')->firstOrFail();
 
@@ -173,18 +178,24 @@ it('supports relation queries', function () {
         }
     };
 
-    Pdf::shouldReceive('loadView')
-        ->with('test-view', Mockery::on(function (array $data) {
-            return $data['data'] instanceof Collection && $data['data']->count() === 2;
-        }))
+    $pdfRenderer->shouldReceive('download')
+        ->with(
+            'test-view',
+            Mockery::on(function (array $data) {
+                return $data['data'] instanceof Collection && $data['data']->count() === 2;
+            }),
+            Mockery::any(),
+            Mockery::any(),
+            'test.pdf'
+        )
         ->once()
-        ->andReturnSelf();
+        ->andReturn(new Response('downloaded'));
 
     $manager->process($report, Request::create('/report', 'GET'));
 });
 
-it('only exposes query-string parameters as filters to the view', function () {
-    $manager = new LaravelReports;
+it('only exposes query-string parameters as filters to the view', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
 
     $report = new class implements ReportDefinition {
         use DefaultReportConfiguration;
@@ -210,13 +221,18 @@ it('only exposes query-string parameters as filters to the view', function () {
         }
     };
 
-    Pdf::shouldReceive('loadView')
-        ->with('test-view', Mockery::on(function (array $data) {
-            return ($data['filters']['status'] ?? null) === 'paid'
-                && ! array_key_exists('secret', $data['filters']);
-        }))
-        ->once()
-        ->andReturnSelf();
+    $pdfRenderer->shouldReceive('download')
+        ->with(
+            'test-view',
+            Mockery::on(function (array $data) {
+                return ($data['filters']['status'] ?? null) === 'paid'
+                    && ! array_key_exists('secret', $data['filters']);
+            }),
+            Mockery::any(),
+            Mockery::any(),
+            'test.pdf'
+        )
+        ->once();
 
     // 'secret' is in body (POST), not in query-string
     $request = Request::create('/report?status=paid', 'POST', ['secret' => 'do-not-leak']);

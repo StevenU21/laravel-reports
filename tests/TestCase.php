@@ -3,12 +3,21 @@
 namespace Deifhelt\LaravelReports\Tests;
 
 use Deifhelt\LaravelReports\LaravelReportsServiceProvider;
+use Deifhelt\LaravelReports\Interfaces\PdfRenderer;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Mockery\MockInterface;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra
 {
     public static $latestResponse = null;
+
+    /**
+     * Shared mock used in Pest tests when needed.
+     *
+     * @var PdfRenderer|MockInterface
+     */
+    public $pdfRenderer;
 
     protected function setUp(): void
     {

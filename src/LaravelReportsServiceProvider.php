@@ -2,6 +2,8 @@
 
 namespace Deifhelt\LaravelReports;
 
+use Deifhelt\LaravelReports\Interfaces\PdfRenderer;
+use Deifhelt\LaravelReports\Renderers\DomPdfRenderer;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -9,7 +11,11 @@ class LaravelReportsServiceProvider extends PackageServiceProvider
 {
     public function registeringPackage(): void
     {
-        $this->app->singleton(LaravelReports::class, fn () => new LaravelReports());
+        $this->app->singleton(PdfRenderer::class, DomPdfRenderer::class);
+
+        $this->app->singleton(LaravelReports::class, fn ($app) => new LaravelReports(
+            $app->make(PdfRenderer::class)
+        ));
 
         // Stable service key for the Facade accessor
         $this->app->alias(LaravelReports::class, 'laravel-reports');

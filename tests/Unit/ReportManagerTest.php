@@ -1,12 +1,13 @@
 <?php
 
-use Barryvdh\DomPDF\Facade\Pdf;
 use Deifhelt\LaravelReports\Exceptions\ReportException;
+use Deifhelt\LaravelReports\Interfaces\PdfRenderer;
 use Deifhelt\LaravelReports\Interfaces\ReportDefinition;
 use Deifhelt\LaravelReports\LaravelReports;
 use Deifhelt\LaravelReports\Traits\DefaultReportConfiguration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Helper class for testing
@@ -63,62 +64,55 @@ class TestReportWithExtras extends TestReport
     }
 }
 
-beforeEach(function () {
-    $mockResponse = Mockery::mock(\Illuminate\Http\Response::class);
-    $mockResponse->shouldReceive('getContent')->andReturn('downloaded');
+$pdfRenderer = null;
 
-    $mockStreamResponse = Mockery::mock(\Illuminate\Http\Response::class);
-    $mockStreamResponse->shouldReceive('getContent')->andReturn('streamed');
+beforeEach(function () use (&$pdfRenderer) {
+    $pdfRenderer = Mockery::mock(PdfRenderer::class);
 
-    Pdf::shouldReceive('loadView')->andReturnSelf()->byDefault();
-    Pdf::shouldReceive('setPaper')->andReturnSelf()->byDefault();
-    Pdf::shouldReceive('stream')->andReturn($mockStreamResponse)->byDefault();
-    Pdf::shouldReceive('download')->andReturn($mockResponse)->byDefault();
+    $pdfRenderer->shouldReceive('download')->andReturn(new Response('downloaded'))->byDefault();
+    $pdfRenderer->shouldReceive('stream')->andReturn(new Response('streamed'))->byDefault();
 });
 
-it('can download a report by default', function () {
-    $manager = new LaravelReports;
+it('can download a report by default', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
     $report = new TestReport;
     $request = Request::create('/report', 'GET');
 
-    Pdf::shouldReceive('loadView')
-        ->with('test-view', \Mockery::on(function ($data) {
-            return isset($data['data']) && count($data['data']) === 2;
-        }))
+    $pdfRenderer->shouldReceive('download')
+        ->with(
+            'test-view',
+            Mockery::on(function (array $data) {
+                return isset($data['data']) && count($data['data']) === 2;
+            }),
+            Mockery::any(),
+            Mockery::any(),
+            'test.pdf'
+        )
         ->once()
-        ->andReturnSelf();
-
-    Pdf::shouldReceive('download')
-        ->with('test.pdf')
-        ->once()
-        ->andReturn(Mockery::mock(\Illuminate\Http\Response::class, function ($mock) {
-            $mock->shouldReceive('getContent')->andReturn('downloaded');
-        }));
+        ->andReturn(new Response('downloaded'));
 
     $response = $manager->process($report, $request);
 
     expect($response->getContent())->toBe('downloaded');
 });
 
-it('can stream a report when requested', function () {
-    $manager = new LaravelReports;
+it('can stream a report when requested', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
     $report = new TestReport;
     $request = Request::create('/report', 'GET', ['preview' => true]);
 
-    Pdf::shouldReceive('stream')
-        ->with('test.pdf')
+    $pdfRenderer->shouldReceive('stream')
+        ->with('test-view', Mockery::any(), Mockery::any(), Mockery::any(), 'test.pdf')
         ->once()
-        ->andReturn(Mockery::mock(\Illuminate\Http\Response::class, function ($mock) {
-            $mock->shouldReceive('getContent')->andReturn('streamed');
-        }));
+        ->andReturn(new Response('streamed'));
 
     $response = $manager->process($report, $request);
 
     expect($response->getContent())->toBe('streamed');
 });
 
-it('validates empty data throws exception', function () {
-    $manager = new LaravelReports;
+it('validates empty data throws exception', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
     $report = new class extends TestReport
     {
         public $shouldValidate = true;
@@ -134,8 +128,8 @@ it('validates empty data throws exception', function () {
 
 })->throws(ReportException::class, 'No data available');
 
-it('validates max records throws exception', function () {
-    $manager = new LaravelReports;
+it('validates max records throws exception', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
     $report = new class extends TestReport
     {
         public $shouldValidate = true;
@@ -152,8 +146,8 @@ it('validates max records throws exception', function () {
 
 })->throws(ReportException::class, 'exceeds the allowed limit');
 
-it('passes validation with correct data count', function () {
-    $manager = new LaravelReports;
+it('passes validation with correct data count', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
     $report = new class extends TestReport
     {
         public $shouldValidate = true;
@@ -166,38 +160,38 @@ it('passes validation with correct data count', function () {
     $request = Request::create('/report', 'GET');
 
     // Should not throw
-    Pdf::shouldReceive('download');
+    $pdfRenderer->shouldReceive('download');
     $manager->process($report, $request);
 
     expect(true)->toBeTrue();
 });
 
-it('merges view data and configuration correctly', function () {
-    $manager = new LaravelReports;
+it('merges view data and configuration correctly', function () use (&$pdfRenderer) {
+    $manager = new LaravelReports($pdfRenderer);
     $report = new TestReportWithExtras;
     $request = Request::create('/report', 'GET');
 
-    Pdf::shouldReceive('loadView')
-        ->with('test-view', \Mockery::on(function ($data) {
-            return $data['extra'] === 'value'
-                && $data['summary']['total'] === 2
-                && $data['totals']['total'] === 2;
-        }))
-        ->once()
-        ->andReturnSelf();
-
-    Pdf::shouldReceive('setPaper')
-        ->with('a4', 'landscape')
-        ->once()
-        ->andReturnSelf();
+    $pdfRenderer->shouldReceive('download')
+        ->with(
+            'test-view',
+            Mockery::on(function (array $data) {
+                return $data['extra'] === 'value'
+                    && $data['summary']['total'] === 2
+                    && $data['totals']['total'] === 2;
+            }),
+            'a4',
+            'landscape',
+            'test.pdf'
+        )
+        ->once();
 
     $manager->process($report, $request);
 });
 
-it('respects configured max records limit', function () {
+it('respects configured max records limit', function () use (&$pdfRenderer) {
     config(['reports.limit' => 50]);
 
-    $manager = new LaravelReports;
+    $manager = new LaravelReports($pdfRenderer);
     $report = new class extends TestReport
     {
         public $shouldValidate = true;
@@ -214,10 +208,10 @@ it('respects configured max records limit', function () {
 
 })->throws(ReportException::class, 'exceeds the allowed limit of 50 records');
 
-it('allows increasing max records limit', function () {
+it('allows increasing max records limit', function () use (&$pdfRenderer) {
     config(['reports.limit' => 2000]);
 
-    $manager = new LaravelReports;
+    $manager = new LaravelReports($pdfRenderer);
     $report = new class extends TestReport
     {
         public $shouldValidate = true;
@@ -231,7 +225,7 @@ it('allows increasing max records limit', function () {
     $request = Request::create('/report', 'GET');
 
     // Should not throw
-    Pdf::shouldReceive('download');
+    $pdfRenderer->shouldReceive('download');
     $manager->process($report, $request);
 
     expect(true)->toBeTrue();
