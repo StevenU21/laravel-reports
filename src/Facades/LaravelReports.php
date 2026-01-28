@@ -11,6 +11,6 @@ class LaravelReports extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return \Deifhelt\LaravelReports\LaravelReports::class;
+        return 'laravel-reports';
     }
 }

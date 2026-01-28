@@ -104,7 +104,38 @@ Create your Blade file in `resources/views/reports/users.blade.php`. The `$data`
 
 ## 3. Generate the Report in the Controller
 
-Inject your report class and use the `LaravelReports` Facade to process it.
+You can process reports using dependency injection (recommended) or the Facade.
+
+### Recommended: Dependency Injection
+
+```php
+namespace App\Http\Controllers;
+
+use App\Reports\UsersReport;
+use Deifhelt\LaravelReports\LaravelReports;
+use Illuminate\Http\Request;
+
+class ReportController extends Controller
+{
+    public function __construct(private readonly LaravelReports $laravelReports)
+    {
+    }
+
+    public function download(Request $request)
+    {
+        $report = new UsersReport();
+
+        // Automatically handles Stream or Download based on the request
+        // If the request has ?preview or ?stream, it will be shown in the browser.
+        // Otherwise, it will be downloaded.
+        return $this->laravelReports->process($report, $request);
+    }
+}
+```
+
+### Alternative: Facade
+
+If you prefer using the Facade, make sure you import the Facade class (not the concrete `Deifhelt\LaravelReports\LaravelReports` class), otherwise you'll get a “non-static method … cannot be called statically” type error.
 
 ```php
 namespace App\Http\Controllers;
@@ -117,12 +148,7 @@ class ReportController extends Controller
 {
     public function download(Request $request)
     {
-        $report = new UsersReport();
-
-        // Automatically handles Stream or Download based on the request
-        // If the request has ?preview or ?stream, it will be shown in the browser.
-        // Otherwise, it will be downloaded.
-        return LaravelReports::process($report, $request);
+        return LaravelReports::process(new UsersReport(), $request);
     }
 }
 ```

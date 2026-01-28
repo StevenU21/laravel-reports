@@ -96,7 +96,20 @@ Generate the PDF in your controller:
 ```php
 public function export(Request $request)
 {
-    return \Deifhelt\LaravelReports\Facades\LaravelReports::process(new MonthlySales(), $request);
+    // Recommended: dependency injection
+    return app(\Deifhelt\LaravelReports\LaravelReports::class)
+        ->process(new MonthlySales(), $request);
+}
+```
+
+Or using the Facade:
+
+```php
+use Deifhelt\LaravelReports\Facades\LaravelReports;
+
+public function export(Request $request)
+{
+    return LaravelReports::process(new MonthlySales(), $request);
 }
 ```
 

@@ -7,6 +7,14 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 
 class LaravelReportsServiceProvider extends PackageServiceProvider
 {
+    public function registeringPackage(): void
+    {
+        $this->app->singleton(LaravelReports::class, fn () => new LaravelReports());
+
+        // Stable service key for the Facade accessor
+        $this->app->alias(LaravelReports::class, 'laravel-reports');
+    }
+
     public function configurePackage(Package $package): void
     {
         /*
