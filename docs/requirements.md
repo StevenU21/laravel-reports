@@ -2,7 +2,7 @@
 
 To use **Laravel Reports**, ensure your environment meets the following requirements:
 
-- **PHP**: Version 8.1 or higher.
+- **PHP**: Version 8.2 or higher.
 - **Laravel**: Version 10.0, 11.0, or 12.0.
 - **Dependencies**:
     - `barryvdh/laravel-dompdf`: ^3.1

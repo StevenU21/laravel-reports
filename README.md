@@ -35,6 +35,12 @@ You can publish the config file with:
 php artisan vendor:publish --tag="laravel-reports-config"
 ```
 
+or
+
+```bash
+php artisan vendor:publish --provider="Deifhelt\LaravelReports\LaravelReportsServiceProvider"
+```
+
 ## Creating Reports
 
 The package provides a convenient command to generate a report class, its corresponding Blade view, and a test file:

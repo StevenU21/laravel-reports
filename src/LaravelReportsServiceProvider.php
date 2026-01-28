@@ -16,9 +16,16 @@ class LaravelReportsServiceProvider extends PackageServiceProvider
          */
         $package
             ->name('laravel-reports')
-            ->hasConfigFile()
+            ->hasConfigFile('reports')
             ->hasViews()
             ->hasMigration('create_laravel_reports_table')
             ->hasCommand(Commands\MakeReportCommand::class);
+    }
+
+    public function bootingPackage()
+    {
+        $this->publishes([
+            __DIR__ . '/../config/reports.php' => config_path('reports.php'),
+        ], 'laravel-reports-config');
     }
 }
