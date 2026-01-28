@@ -1,0 +1,157 @@
+# Usage
+
+Laravel Reports simplifies PDF report generation by structuring the logic into dedicated classes.
+
+## Command Generation
+
+The easiest way to get started is by using the Artisan command:
+
+```bash
+php artisan make:report UsersReport
+```
+
+This command will automatically generate:
+
+1.  **Report Class**: `app/Reports/UsersReport.php`
+2.  **Blade View**: `resources/views/reports/users-report.blade.php`
+3.  **Pest Test**: `tests/Feature/Reports/UsersReportTest.php`
+
+You can also link it to an existing model:
+
+```bash
+php artisan make:report UsersReport --model=User
+```
+
+## 1. Create a Report Definition Manually
+
+```php
+namespace App\Reports;
+
+use Deifhelt\LaravelReports\Interfaces\ReportDefinition;
+use Deifhelt\LaravelReports\Traits\DefaultReportConfiguration;
+use Illuminate\Http\Request;
+use App\Models\User;
+
+class UsersReport implements ReportDefinition
+{
+    use DefaultReportConfiguration;
+
+    public function query(Request $request)
+    {
+        // Returns a Query Builder, Eloquent Builder, or Collection
+        return User::query()
+            ->when($request->has('role'), function ($q) use ($request) {
+                $q->where('role', $request->role);
+            });
+    }
+
+    public function view(): string
+    {
+        // The Blade view that will render the PDF
+        return 'reports.users';
+    }
+
+    public function filename(): string
+    {
+        return 'users-report-' . date('Y-m-d') . '.pdf';
+    }
+}
+```
+
+## 2. Create the Blade View
+
+Create your Blade file in `resources/views/reports/users.blade.php`. The `$data` variable will contain the results of your query.
+
+```html
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Users Report</title>
+        <style>
+            /* Your CSS styles for PDF */
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th,
+            td {
+                border: 1px solid black;
+                padding: 5px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Users List</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($data as $user)
+                <tr>
+                    <td>{{ $user->name }}</td>
+                    <td>{{ $user->email }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </body>
+</html>
+```
+
+## 3. Generate the Report in the Controller
+
+Inject your report class and use the `LaravelReports` Facade to process it.
+
+```php
+namespace App\Http\Controllers;
+
+use App\Reports\UsersReport;
+use Deifhelt\LaravelReports\Facades\LaravelReports;
+use Illuminate\Http\Request;
+
+class ReportController extends Controller
+{
+    public function download(Request $request)
+    {
+        $report = new UsersReport();
+
+        // Automatically handles Stream or Download based on the request
+        // If the request has ?preview or ?stream, it will be shown in the browser.
+        // Otherwise, it will be downloaded.
+        return LaravelReports::process($report, $request);
+    }
+}
+```
+
+## Additional Features
+
+### Limit Validation
+
+If you want to protect the report from massive queries, you can override the `shouldValidateLimit` method or configure it in your class:
+
+```php
+public function shouldValidateLimit(): bool
+{
+    return true; // Throws exception if record limit is exceeded (Default: 1000)
+}
+```
+
+### Paper Configuration
+
+You can customize the size and orientation:
+
+```php
+public function paper(): string|array
+{
+    return 'a4'; // or [0, 0, 500, 800]
+}
+
+public function orientation(): string
+{
+    return 'landscape';
+}
+```

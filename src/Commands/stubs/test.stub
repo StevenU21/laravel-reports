@@ -1,0 +1,18 @@
+<?php
+
+use App\Reports\{{ class }};
+
+it('can instantiate {{ class }}', function () {
+    $report = new {{ class }}();
+    expect($report)->toBeInstanceOf({{ class }}::class);
+});
+
+it('has a valid view name', function () {
+    $report = new {{ class }}();
+    expect($report->view())->toBe('reports.{{ view }}');
+});
+
+it('has a valid filename', function () {
+    $report = new {{ class }}();
+    expect($report->filename())->toContain('{{ filename }}');
+});

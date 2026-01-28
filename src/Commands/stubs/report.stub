@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Reports;
+
+use Deifhelt\LaravelReports\Interfaces\ReportDefinition;
+use Deifhelt\LaravelReports\Traits\DefaultReportConfiguration;
+use Illuminate\Http\Request;
+
+class {{ class }} implements ReportDefinition
+{
+    use DefaultReportConfiguration;
+
+    public function query(Request $request)
+    {
+        // return User::query();
+    }
+
+    public function view(): string
+    {
+        return 'reports.{{ view }}';
+    }
+
+    public function filename(): string
+    {
+        return '{{ filename }}_' . now()->format('Ymd_His') . '.pdf';
+    }
+}

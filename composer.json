@@ -1,0 +1,84 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "deifhelt/laravel-reports",
+    "type": "library",
+    "description": "Reports for Laravel.",
+    "keywords": [
+        "laravel",
+        "framework",
+        "reports",
+        "manager"
+    ],
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/deifhelt/laravel-reports/issues",
+        "source": "https://github.com/deifhelt/laravel-reports"
+    },
+    "authors": [
+        {
+            "name": "Deifhelt Ulloa",
+            "email": "ulloadeifheltsteven@gmail.com",
+            "homepage": "https://github.com/StevenU21",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/contracts": "^10.0||^11.0||^12.0",
+        "illuminate/support": "^10.0||^11.0||^12.0",
+        "barryvdh/laravel-dompdf": "^3.1",
+        "spatie/laravel-package-tools": "^1.16"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.10",
+        "nunomaduro/collision": "^7.0 || ^8.0",
+        "larastan/larastan": "^2.34 || ^3.0",
+        "orchestra/testbench": "^8.0 || ^9.0 || ^10.0",
+        "pestphp/pest": "^2.0 || ^3.0",
+        "pestphp/pest-plugin-arch": "^2.0 || ^3.0",
+        "pestphp/pest-plugin-laravel": "^2.0 || ^3.0",
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan-deprecation-rules": "^1.0 || ^2.0",
+        "phpstan/phpstan-phpunit": "^1.0 || ^2.0",
+        "spatie/laravel-ray": "^1.35"
+    },
+    "autoload": {
+        "psr-4": {
+            "Deifhelt\\LaravelReports\\": "src/",
+            "Deifhelt\\LaravelReports\\Database\\Factories\\": "database/factories/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Deifhelt\\LaravelReports\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": "@composer run prepare",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "analyse": "vendor/bin/phpstan analyse",
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Deifhelt\\LaravelReports\\LaravelReportsServiceProvider"
+            ],
+            "aliases": {
+                "LaravelReports": "Deifhelt\\LaravelReports\\Facades\\LaravelReports"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
