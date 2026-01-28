@@ -134,6 +134,75 @@ class ReportController extends Controller
 }
 ```
 
+### Example: Multiple endpoints + authorization + route model binding
+
+This is a more realistic example, similar to a sales export controller. The important part is always the same call:
+
+`$this->laravelReports->process($report, $request, $title)`
+
+The response mode is chosen automatically:
+
+- `?preview=1` or `?stream=1` streams in the browser
+- no flag downloads the PDF
+
+```php
+namespace App\Http\Controllers\Exports;
+
+use App\Http\Controllers\Controller;
+use App\Models\Sale;
+use App\Reports\GeneralSalesReport;
+use App\Reports\SaleReceiptReport;
+use App\Reports\SingleSalesReport;
+use Deifhelt\LaravelReports\LaravelReports;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Request;
+
+class SaleExportController extends Controller
+{
+    use AuthorizesRequests;
+
+    public function __construct(private readonly LaravelReports $laravelReports)
+    {
+    }
+
+    // GET /exports/sales
+    public function index(Request $request)
+    {
+        $this->authorize('export', Sale::class);
+
+        return $this->laravelReports->process(
+            report: new GeneralSalesReport(),
+            request: $request,
+            title: 'Reporte General de Ventas',
+        );
+    }
+
+    // GET /exports/sales/{sale}
+    public function show(Sale $sale, Request $request)
+    {
+        $this->authorize('export', $sale);
+
+        return $this->laravelReports->process(
+            report: new SingleSalesReport($sale),
+            request: $request,
+            title: 'Venta #' . $sale->id,
+        );
+    }
+
+    // GET /exports/sales/{sale}/receipt
+    public function receipt(Sale $sale, Request $request)
+    {
+        $this->authorize('export', $sale);
+
+        return $this->laravelReports->process(
+            report: new SaleReceiptReport($sale),
+            request: $request,
+            title: 'Recibo #' . $sale->id,
+        );
+    }
+}
+```
+
 ### Alternative: Facade
 
 If you prefer using the Facade, make sure you import the Facade class (not the concrete `Deifhelt\LaravelReports\LaravelReports` class), otherwise you'll get a “non-static method … cannot be called statically” type error.
@@ -153,6 +222,44 @@ class ReportController extends Controller
     }
 }
 ```
+
+### Linking from Blade (routes + query params)
+
+You typically expose routes in your app and link to them from Blade.
+
+Example routes:
+
+```php
+use App\Http\Controllers\Exports\SaleExportController;
+
+Route::get('/exports/sales', [SaleExportController::class, 'index'])->name('exports.sales.index');
+Route::get('/exports/sales/{sale}', [SaleExportController::class, 'show'])->name('exports.sales.show');
+Route::get('/exports/sales/{sale}/receipt', [SaleExportController::class, 'receipt'])->name('exports.sales.receipt');
+```
+
+Example links:
+
+```blade
+{{-- Downloads (no query flag) --}}
+<a href="{{ route('exports.sales.index') }}">Descargar reporte general</a>
+
+{{-- Streams in browser (adds ?preview=1) --}}
+<a href="{{ route('exports.sales.index', ['preview' => 1]) }}">Ver reporte general</a>
+
+{{-- Streams a single-sale report --}}
+<a href="{{ route('exports.sales.show', ['sale' => $sale->getRouteKey(), 'preview' => 1]) }}">
+    Ver venta #{{ $sale->id }}
+</a>
+
+{{-- Receipt example --}}
+<a href="{{ route('exports.sales.receipt', ['sale' => $sale->getRouteKey()]) }}">Descargar recibo</a>
+```
+
+Notes:
+
+- `?preview=1` (or `?stream=1`) streams in the browser; without it, the package downloads.
+- Any query string params (like `date_from`, `date_to`, `role`, etc.) are available in your report's `query(Request $request)`.
+- Validate/allowlist filters (FormRequest) before using them in a query.
 
 ## Additional Features
 
@@ -218,6 +325,13 @@ This package does not depend on NativePHP, but it provides a small helper to mak
 - If validation passes, it calls your app-specific window opener and returns `204 No Content`.
 - The NativePHP window loads a route with `?preview=1`, and that route returns the streamed PDF using the package.
 
+Why two endpoints/methods are needed:
+
+- `openPreview(...)` is an action that **opens the NativePHP window** (side-effect) and returns `204`. It is not meant to be used as a normal browser link.
+- `index(...)` (or a dedicated `stream(...)`) is the action that **returns the PDF response** (stream/download). This is what the window (and the browser) loads.
+
+If you are not using NativePHP, you usually only need `index()` (and optionally `show()`/`receipt()` etc.), and you can just link with `?preview=1`.
+
 ### 1) Implement a window opener adapter in your app
 
 ```php
@@ -254,12 +368,17 @@ $this->app->singleton(PreviewWindowOpener::class, NativePhpWindowOpener::class);
 
 ```php
 use App\Reports\GeneralSalesReport;
+use App\Http\Controllers\Controller;
+use Deifhelt\LaravelReports\LaravelReports;
 use Deifhelt\LaravelReports\Preview\PreviewWindowReportManager;
 use Illuminate\Http\Request;
 
-class SaleExportController
+class SaleExportController extends Controller
 {
-    public function __construct(private readonly PreviewWindowReportManager $previews) {}
+    public function __construct(
+        private readonly LaravelReports $laravelReports,
+        private readonly PreviewWindowReportManager $previews,
+    ) {}
 
     // A) Opens the NativePHP preview window (does not return the PDF)
     public function openPreview(Request $request)
@@ -268,16 +387,46 @@ class SaleExportController
             report: new GeneralSalesReport(),
             request: $request,
             title: 'Reporte General de Ventas',
-            route: 'exports.sales.stream',
+            // Point to any existing route that returns the PDF.
+            // The helper will add ?preview=1 automatically.
+            route: 'exports.sales.index',
         );
     }
 
     // B) Route that the NativePHP window loads (returns the streamed PDF)
-    public function stream(Request $request)
+    public function index(Request $request)
     {
         // When the window loads this route with ?preview=1, the package streams the PDF.
-        return app(\Deifhelt\LaravelReports\LaravelReports::class)
-            ->process(new GeneralSalesReport(), $request, 'Reporte General de Ventas');
+        // Otherwise, it downloads the PDF.
+        return $this->laravelReports->process(new GeneralSalesReport(), $request, 'Reporte General de Ventas');
     }
 }
 ```
+
+#### Routes example
+
+```php
+use App\Http\Controllers\Exports\SaleExportController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/exports/sales', [SaleExportController::class, 'index'])
+    ->name('exports.sales.index');
+
+Route::get('/exports/sales/preview', [SaleExportController::class, 'openPreview'])
+    ->name('exports.sales.preview');
+```
+
+#### Blade links for NativePHP vs browser
+
+```blade
+{{-- Browser preview: directly hit the PDF route with ?preview=1 --}}
+<a href="{{ route('exports.sales.index', ['preview' => 1]) }}">Ver en navegador</a>
+
+{{-- NativePHP preview: hit the opener route (returns 204, opens window) --}}
+<a href="{{ route('exports.sales.preview') }}">Abrir en NativePHP</a>
+```
+
+#### Route model binding notes
+
+If your preview opener route includes route-model-binding params (e.g. `/exports/sales/{sale}/receipt/preview`), the helper forwards them automatically to the target route (by converting models to their route keys).
+
