@@ -69,7 +69,7 @@ class PreviewWindowReportManager
         }
 
         $params = [];
-        foreach (($route->parameters() ?? []) as $key => $value) {
+        foreach ($route->parameters() as $key => $value) {
             if (is_scalar($value) || $value === null) {
                 $params[$key] = $value;
                 continue;
