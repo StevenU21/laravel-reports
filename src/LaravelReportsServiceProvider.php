@@ -31,7 +31,6 @@ class LaravelReportsServiceProvider extends PackageServiceProvider
         $package
             ->name('laravel-reports')
             ->hasConfigFile('reports')
-            ->hasViews()
             ->hasMigration('create_laravel_reports_table')
             ->hasCommand(Commands\MakeReportCommand::class);
     }
